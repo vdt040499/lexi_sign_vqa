@@ -13,9 +13,6 @@ def load_json(path: str):
 lawdb_image_dir = Path("./data/law_db/images.fld")
 lawdb_preprocessed_json_path = Path("./data/preprocessed/preprocessed_vlsp_2025_law.json")
 
-print(f"\tLawDB Image Dir: {lawdb_image_dir}")
-print(f"\tLawDB Json Path: {lawdb_preprocessed_json_path}")
-
 try:
     lawdb = load_json(lawdb_preprocessed_json_path)
     
