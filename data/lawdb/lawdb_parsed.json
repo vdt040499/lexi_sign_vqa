@@ -205,7 +205,10 @@
                 "signs": [
                     "image006_crop0.jpg"
                 ],
-                "num_signs": 1
+                "num_signs": 1,
+                "__is_sucessfully_parsing_sign": false,
+                "detailed_signs": [],
+                "__error": "Parse mismatch: 0/1"
             },
             {
                 "id": "18",
