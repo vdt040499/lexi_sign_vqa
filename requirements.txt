@@ -1,0 +1,10 @@
+html2text==2025.4.15
+pydantic-settings==2.10.1
+pillow==11.3.0
+opencv-python
+torch
+torchvision
+transformers
+qdrant-client==1.15.1
+loguru==0.7.3
+openai>=1.0.0
