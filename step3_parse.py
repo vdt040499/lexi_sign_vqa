@@ -3,6 +3,7 @@ import re
 import json
 import time
 import base64
+import argparse
 from copy import deepcopy
 from pathlib import Path
 from typing import Sequence, List, Dict, Any, Tuple
@@ -15,27 +16,58 @@ EXTRACTED_SIGN_DIR = Path("data/lawdb/signs_extracted")
 
 OLLAMA_API_KEY = "ollama"
 BASE_URL = "http://localhost:11434/v1"
-MODEL_ID = "moondream"
+MODEL_ID = "gemma3:12b"
 
 # Khởi tạo client
 client = OpenAI(api_key=OLLAMA_API_KEY, base_url=BASE_URL)
 
 # Prompt template gốc từ dự án
 PARSE_SIGNS_PROMPT = """
-Bạn là một chuyên gia về luật giao thông. Dưới đây là nội dung Điều luật: <<TITLE>>.
+Bạn là chuyên gia luật giao thông. Điều luật: <<TITLE>>.
 Nội dung: <<CONTENT>>
-Hãy phân tích <<NUM_SIGNS>> hình ảnh biển báo tương ứng từ ảnh thứ <<FROM_INDEX>> đến <<TO_INDEX>>.
-Trả về một mảng JSON có cấu trúc: [{"name": "Tên biển", "description": "Mô tả chi tiết"}].
-Chỉ trả về JSON, không giải thích gì thêm.
+Nhiệm vụ: phân tích đúng <<NUM_SIGNS>> hình ảnh biển báo (ảnh thứ <<FROM_INDEX>> đến <<TO_INDEX>>) và trả về DUY NHẤT một mảng JSON, mỗi phần tử có "name" và "description".
+
+QUY TẮC BẮT BUỘC:
+- Đầu ra phải là ĐÚNG MỘT mảng JSON, bắt đầu bằng [ và kết thúc bằng ].
+- Không được thêm bất kỳ câu chữ, giải thích, markdown hay text nào trước hoặc sau mảng JSON.
+- Định dạng: [{"name": "Tên biển báo", "description": "Mô tả ngắn gọn"}]
+
+Ví dụ đầu ra hợp lệ:
+[{"name": "Biển cấm", "description": "Cấm đi ngược chiều"}, {"name": "Biển chỉ dẫn", "description": "Chỉ hướng đi"}]
+
+Output ONLY the JSON array above, no other text, no explanation.
 """
 
-def safe_json_from_llm(text: str) -> any:
+def safe_json_from_llm(text: str):
     """
-    Strip common code fences and parse JSON.
-    Accepts ```json ... ``` or ``` ... ``` fences.
+    Parse JSON array from LLM output. Strips code fences, then tries to extract
+    a [...] array if the response contains prose before/after.
     """
+    if not text or not text.strip():
+        raise ValueError("Empty response")
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
-    return json.loads(cleaned)
+    # Thử parse trực tiếp
+    try:
+        return json.loads(cleaned)
+    except json.JSONDecodeError:
+        pass
+    # Nếu model bọc JSON bằng văn bản: tìm mảng [...] đầu tiên (từ [ đến ] khớp ngoặc)
+    start = cleaned.find("[")
+    if start == -1:
+        raise ValueError("No JSON array found in response")
+    depth = 0
+    end = -1
+    for i in range(start, len(cleaned)):
+        if cleaned[i] == "[":
+            depth += 1
+        elif cleaned[i] == "]":
+            depth -= 1
+            if depth == 0:
+                end = i
+                break
+    if end == -1:
+        raise ValueError("Unclosed JSON array in response")
+    return json.loads(cleaned[start : end + 1])
 
 def group_signs_by_image(article: Dict) -> Tuple[List[str], List[List[str]]]:
     """Gom nhóm các biển báo đã cắt theo ID ảnh trang luật gốc"""
@@ -71,7 +103,7 @@ def encode_image_to_base64(path: Path) -> str:
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
-def process_article(article: Dict, chunk_size: int = 10, sleep_sec: float = 1.0):
+def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
     """Xử lý phân tích biển báo theo từng lô (chunk) để tránh quá tải API"""
     article.setdefault("signs", [])
     if not article["signs"]:
@@ -86,7 +118,11 @@ def process_article(article: Dict, chunk_size: int = 10, sleep_sec: float = 1.0)
     parsed_response_all = []
 
     # Chia lô để gọi API
-    for start in tqdm(range(0, num_cropped, chunk_size), leave=False, desc="Parsing chunks"):
+    for start in tqdm(
+        range(0, num_cropped, chunk_size),
+        leave=False,
+        desc=f"Chunks (size={chunk_size}, {num_cropped} signs)",
+    ):
         stop = min(start + chunk_size, num_cropped)
         allowed = list(range(start, stop))
 
@@ -124,6 +160,7 @@ def process_article(article: Dict, chunk_size: int = 10, sleep_sec: float = 1.0)
                 temperature=0.0
             )
             llm_text = response.choices[0].message.content
+            print(f"LLM response: {llm_text}")
             parsed = safe_json_from_llm(llm_text)
             if isinstance(parsed, list):
                 parsed_response_all.extend(parsed[: len(allowed)])
@@ -148,22 +185,74 @@ def process_article(article: Dict, chunk_size: int = 10, sleep_sec: float = 1.0)
         article["__error"] = f"Parse mismatch: {len(parsed_response_all)}/{len(article['signs'])}"
 
 def main():
-    if not os.path.exists(INPUT_JSON):
-        print(f"[ERROR] Không tìm thấy file: {INPUT_JSON}")
+    parser = argparse.ArgumentParser(description="Parse traffic signs descriptions using VLM.")
+    parser.add_argument(
+        "--law-ids",
+        nargs="*",
+        help="(Deprecated) Trước đây dùng để lọc theo id, hiện được dùng như alias cho --article-ids.",
+    )
+    parser.add_argument(
+        "--article-ids",
+        nargs="*",
+        help="Chỉ xử lý các điều luật (article) có id trong danh sách này (ví dụ: --article-ids 46 47). Nếu bỏ trống sẽ xử lý tất cả.",
+    )
+    parser.add_argument(
+        "--chunk-size",
+        type=int,
+        default=10,
+        help="Số lượng biển báo tối đa trong mỗi lần gọi VLM (mặc định: 3). Tăng lên nếu model ổn định, giảm nếu gặp lỗi/timeout với điều luật có nhiều ảnh crop.",
+    )
+    parser.add_argument(
+        "--sleep-sec",
+        type=float,
+        default=1.0,
+        help="Thời gian nghỉ (giây) giữa các lần gọi VLM.",
+    )
+    args = parser.parse_args()
+
+    # Ưu tiên resume từ OUTPUT_JSON nếu đã tồn tại, nếu không sẽ đọc từ INPUT_JSON gốc
+    load_path = OUTPUT_JSON if os.path.exists(OUTPUT_JSON) else INPUT_JSON
+    if not os.path.exists(load_path):
+        print(f"[ERROR] Không tìm thấy file: {load_path}")
         return
 
-    with open(INPUT_JSON, "r", encoding="utf-8") as f:
+    with open(load_path, "r", encoding="utf-8") as f:
         lawdb = json.load(f)
 
-    print(f"[INFO] Bắt đầu phân tích {len(lawdb)} bộ luật...")
+    print(f"[INFO] Bắt đầu phân tích {len(lawdb)} bộ luật từ: {load_path}")
+    # Gộp cả law-ids (cũ) và article-ids (mới) để dùng như danh sách id điều luật cần xử lý
+    target_article_ids = set()
+    if args.article_ids:
+        target_article_ids.update(str(x) for x in args.article_ids)
+    if args.law_ids:
+        target_article_ids.update(str(x) for x in args.law_ids)
+    if not target_article_ids:
+        target_article_ids = None
     
-    for law in lawdb:
-        law_id = law.get("id", "Unknown")
-        articles = law.get("articles", [])
-        print(f"\n[..] Đang xử lý bộ luật: {law_id}")
+    for law_idx, law in enumerate(lawdb, start=1):
+        law_id = str(law.get("id", "Unknown"))
 
-        for article in tqdm(articles, desc="Articles progress"):
-            process_article(article)
+        articles = law.get("articles", [])
+        print(f"\n[..] Đang xử lý bộ luật {law_id} ({law_idx}/{len(lawdb)}) - số điều luật: {len(articles)}")
+
+        for art_idx, article in enumerate(
+            tqdm(articles, desc=f"Articles of law {law_id}"), start=1
+        ):
+            art_id = article.get("id", f"{art_idx}")
+            num_signs = len(article.get("signs", []))
+            print(f"[..]   -> Article {art_id} ({art_idx}/{len(articles)}), số biển báo: {num_signs}")
+
+            # Nếu người dùng chỉ định danh sách article-ids thì bỏ qua các điều luật khác
+            if target_article_ids and str(art_id) not in target_article_ids:
+                continue
+
+            # Nếu đã parse thành công ở lần chạy trước thì bỏ qua
+            if article.get("__is_sucessfully_parsing_sign"):
+                continue
+
+            num_chunks = (num_signs + args.chunk_size - 1) // args.chunk_size
+            print(f"[..] chunk_size={args.chunk_size}, số lô gọi VLM: {num_chunks}")
+            process_article(article, chunk_size=args.chunk_size, sleep_sec=args.sleep_sec)
             
             # Lưu liên tục để tránh mất dữ liệu nếu gặp sự cố
             with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
