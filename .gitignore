@@ -1,3 +1,8 @@
 data/lawdb/images.fld
 data/lawdb/signs_extracted
+data/public_test/extracted_signs
+data/public_test/public_test_images
 debug
+models
+mobileclip_blt.ts
+test.py
