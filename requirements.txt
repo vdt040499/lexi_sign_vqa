@@ -4,7 +4,8 @@ opencv-python
 torch
 torchvision
 transformers
-qdrant-client==1.15.1
+qdrant-client>=1.17.0
+sentencepiece
 openai>=1.0.0
 tqdm
 ultralytics>=8.0.0

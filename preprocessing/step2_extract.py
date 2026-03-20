@@ -3,15 +3,13 @@ import sys
 import json
 import cv2
 from pathlib import Path
+from config import INPUT_JSON, OUTPUT_JSON, LAWDB_IMAGE_PATH, EXTRACTED_SIGN_PATH, IGNORED_ARTICLE_ID
 
-INPUT_JSON = "data/lawdb/lawdb_preprocessed.json"
-OUTPUT_JSON = "data/lawdb/lawdb_extracted.json"
-LAWDB_IMAGE_DIR = Path("data/lawdb/images.fld")
-EXTRACTED_SIGN_DIR = Path("data/lawdb/signs_extracted")
-IGNORED_ARTICLE_ID = "ignore_prefix_"
+LAWDB_IMAGE_DIR = Path(LAWDB_IMAGE_PATH)
+EXTRACTED_SIGN_DIR = Path(EXTRACTED_SIGN_PATH)
 
 def crop_signs_opencv(image_path):
-    """Thay thế cho SignExtractor gốc: Cắt biển báo bằng OpenCV"""
+    """Crop signs using OpenCV"""
     image = cv2.imread(str(image_path))
     if image is None: return []
     
@@ -22,9 +20,9 @@ def crop_signs_opencv(image_path):
     cropped_images = []
     for cnt in contours:
         x, y, w, h = cv2.boundingRect(cnt)
-        if w > 50 and h > 50: # Lọc nhiễu
+        if w > 50 and h > 50: # Filter noise
             cropped_images.append(image[y:y+h, x:x+w])
-    # Đảo ngược để giữ thứ tự từ trên xuống dưới (tuỳ chọn)
+    # Reverse the order to keep the order from top to bottom (optional)
     return cropped_images[::-1] 
 
 def main():
@@ -44,7 +42,6 @@ def main():
                 continue
 
             signs = []
-            # Lặp qua các ảnh gốc của điều luật (đã được step 1 tìm ra)
             for image_name in article.get("images", []):
                 image_path = LAWDB_IMAGE_DIR / image_name
 
@@ -52,7 +49,6 @@ def main():
                     print(f"\t\t[WARNING] Image not found: {image_path}")
                     continue
 
-                # Crop ảnh bằng OpenCV
                 cropped_images = crop_signs_opencv(image_path)
 
                 for j, cropped_image in enumerate(cropped_images):
@@ -61,7 +57,7 @@ def main():
                     cv2.imwrite(str(save_path), cropped_image)
                     signs.append(cropped_name)
 
-            # Cập nhật thông tin y hệt bản gốc
+            # Update the articles with the new signs
             article["signs"] = signs
             article["num_signs"] = len(signs)
             counts[law_id] += len(signs)
@@ -69,7 +65,7 @@ def main():
     with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
         json.dump(lawdb, f, ensure_ascii=False, indent=4)
         
-    print(f"[..] Xử lý xong! Tổng số biển báo đã cắt: {counts}")
+    print(f"[..] Processing complete! Total signs extracted: {counts}")
 
 if __name__ == "__main__":
     main()

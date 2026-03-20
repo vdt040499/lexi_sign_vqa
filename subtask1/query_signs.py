@@ -2,8 +2,9 @@ from pathlib import Path
 
 import torch
 import numpy as np
+import torch.nn.functional as F
 from PIL import Image
-from transformers import AutoProcessor, AutoModel
+from transformers import CLIPModel, CLIPProcessor
 from qdrant_client import QdrantClient
 
 from subtask1.config import (
@@ -19,9 +20,8 @@ from subtask1.config import (
 
 
 def build_embedder(device: str = "cpu"):
-    processor = AutoProcessor.from_pretrained(EMBED_MODEL_ID)
-    model = AutoModel.from_pretrained(EMBED_MODEL_ID).to(device)
-    model.eval()
+    processor = CLIPProcessor.from_pretrained(EMBED_MODEL_ID, use_fast=True)
+    model = CLIPModel.from_pretrained(EMBED_MODEL_ID).to(device).eval()
     return processor, model
 
 
@@ -32,8 +32,8 @@ def build_qdrant_client() -> QdrantClient:
 def _embed_image(image: Image.Image, processor, model, device: str) -> list[float]:
     inputs = processor(images=image, return_tensors="pt").to(device)
     with torch.no_grad():
-        vec = model.get_image_features(**inputs).cpu().numpy()[0]
-    vec = vec / (np.linalg.norm(vec) + 1e-8)
+        features = model.get_image_features(**inputs)
+        vec = F.normalize(features, p=2, dim=1).cpu().numpy()[0]
     return vec.tolist()
 
 
@@ -58,11 +58,11 @@ def query_signs(
         image = Image.open(sign_dir / sign_info["image_name"]).convert("RGB")
         vec = _embed_image(image, processor, model, device)
 
-        hits = qdrant_client.search(
+        hits = qdrant_client.query_points(
             collection_name=COLLECTION,
-            query_vector=vec,
+            query=vec,
             limit=QDRANT_TOP_K,
-        )
+        ).points
 
         if hits:
             top = hits[0].payload

@@ -9,19 +9,12 @@ from pathlib import Path
 from typing import Sequence, List, Dict, Any, Tuple
 from tqdm import tqdm
 from openai import OpenAI
+from config import INPUT_PARSE_JSON, OUTPUT_PARSE_JSON, EXTRACTED_SIGN_PATH, OLLAMA_API_KEY, BASE_URL, MODEL_ID
 
-INPUT_JSON = "data/lawdb/lawdb_extracted.json"
-OUTPUT_JSON = "data/lawdb/lawdb_parsed.json"
-EXTRACTED_SIGN_DIR = Path("data/lawdb/signs_extracted")
+EXTRACTED_SIGN_DIR = Path(EXTRACTED_SIGN_PATH)
 
-OLLAMA_API_KEY = "ollama"
-BASE_URL = "http://localhost:11434/v1"
-MODEL_ID = "gemma3:12b"
-
-# Khởi tạo client
 client = OpenAI(api_key=OLLAMA_API_KEY, base_url=BASE_URL)
 
-# Prompt template gốc từ dự án
 PARSE_SIGNS_PROMPT = """
 Bạn là chuyên gia luật giao thông. Điều luật: <<TITLE>>.
 Nội dung: <<CONTENT>>
@@ -46,12 +39,13 @@ def safe_json_from_llm(text: str):
     if not text or not text.strip():
         raise ValueError("Empty response")
     cleaned = re.sub(r"^```(?:json)?\s*|\s*```$", "", text.strip(), flags=re.IGNORECASE)
-    # Thử parse trực tiếp
+
     try:
         return json.loads(cleaned)
     except json.JSONDecodeError:
         pass
-    # Nếu model bọc JSON bằng văn bản: tìm mảng [...] đầu tiên (từ [ đến ] khớp ngoặc)
+
+    # If the model wraps JSON with text: find the first [...] array (from [ to ] match parentheses)
     start = cleaned.find("[")
     if start == -1:
         raise ValueError("No JSON array found in response")
@@ -70,7 +64,7 @@ def safe_json_from_llm(text: str):
     return json.loads(cleaned[start : end + 1])
 
 def group_signs_by_image(article: Dict) -> Tuple[List[str], List[List[str]]]:
-    """Gom nhóm các biển báo đã cắt theo ID ảnh trang luật gốc"""
+    """Group the cropped signs by the image ID in the original law article"""
     base_image_ids = [p.split(".jpg")[0] for p in article.get("images", [])]
     detailed_images = [[] for _ in base_image_ids]
     for sign in article.get("signs", []):
@@ -81,7 +75,7 @@ def group_signs_by_image(article: Dict) -> Tuple[List[str], List[List[str]]]:
     return base_image_ids, detailed_images
 
 def absolute_to_local_indices(detailed_images: Sequence[Sequence[str]]) -> List[List[int]]:
-    """Tạo danh sách index tương ứng cho từng nhóm ảnh"""
+    """Create a list of indices corresponding to each image group"""
     output_indices = []
     offset = 0
     for group in detailed_images:
@@ -91,7 +85,7 @@ def absolute_to_local_indices(detailed_images: Sequence[Sequence[str]]) -> List[
     return output_indices
 
 def reindex_placeholders(content: str, local_indices: Sequence[Sequence[int]]) -> str:
-    """Thay thế <<IMAGE_i>> bằng chuỗi các index ảnh đã được cắt"""
+    """Replace <<IMAGE_i>> with the string of the cropped image indices"""
     updated = content
     for i in reversed(range(len(local_indices))):
         replacement = "".join(f"<<IMAGE_{j}>>" for j in local_indices[i])
@@ -99,25 +93,25 @@ def reindex_placeholders(content: str, local_indices: Sequence[Sequence[int]]) -
     return updated
 
 def encode_image_to_base64(path: Path) -> str:
-    """Chuyển đổi file ảnh sang chuỗi base64"""
+    """Convert the image file to a base64 string"""
     with open(path, "rb") as f:
         return base64.b64encode(f.read()).decode("utf-8")
 
 def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
-    """Xử lý phân tích biển báo theo từng lô (chunk) để tránh quá tải API"""
+    """Process the parsing of signs by chunks to avoid overloading the API"""
     article.setdefault("signs", [])
     if not article["signs"]:
         article["__is_sucessfully_parsing_sign"] = True
         article["detailed_signs"] = []
         return
 
-    # Chuẩn bị dữ liệu chỉ số
+    # Prepare the data indices
     _, detailed_images = group_signs_by_image(article)
     absolute_indices_by_image = absolute_to_local_indices(detailed_images)
     num_cropped = len(article["signs"])
     parsed_response_all = []
 
-    # Chia lô để gọi API
+    # Divide into chunks to call the API
     for start in tqdm(
         range(0, num_cropped, chunk_size),
         leave=False,
@@ -126,11 +120,11 @@ def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
         stop = min(start + chunk_size, num_cropped)
         allowed = list(range(start, stop))
 
-        # Lọc index cục bộ cho lô hiện tại
+        # Filter the local indices for the current chunk
         local_indices = [[j for j in idxs if j in allowed] for idxs in absolute_indices_by_image]
         content = reindex_placeholders(article.get("text", ""), local_indices)
 
-        # Xây dựng prompt text
+        # Build the prompt text
         prompt_text = (
             PARSE_SIGNS_PROMPT.replace("<<TITLE>>", article.get("title", "Không có tiêu đề"))
             .replace("<<CONTENT>>", content)
@@ -139,7 +133,7 @@ def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
             .replace("<<TO_INDEX>>", str(allowed[-1]))
         )
 
-        # Chuẩn bị tin nhắn đa phương thức (Text + Nhiều ảnh)
+        # Prepare the multi-modal message (Text + Multiple images)
         messages = [{"role": "user", "content": [{"type": "text", "text": prompt_text}]}]
         
         for idx in allowed:
@@ -152,7 +146,6 @@ def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
                     "image_url": {"url": f"data:image/jpeg;base64,{b64_data}"}
                 })
 
-        # Gọi VLM API
         try:
             response = client.chat.completions.create(
                 model=MODEL_ID,
@@ -165,11 +158,11 @@ def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
             if isinstance(parsed, list):
                 parsed_response_all.extend(parsed[: len(allowed)])
         except Exception as e:
-            print(f"\n[ERROR] Lỗi gọi API tại lô {start}-{stop}: {e}")
+            print(f"\n[ERROR] Error calling API at chunk {start}-{stop}: {e}")
 
         time.sleep(sleep_sec)
 
-    # Tổng hợp và lưu kết quả
+    # Summarize and save the result
     is_ok = len(parsed_response_all) == len(article["signs"])
     detailed_signs = []
     
@@ -189,38 +182,38 @@ def main():
     parser.add_argument(
         "--law-ids",
         nargs="*",
-        help="(Deprecated) Trước đây dùng để lọc theo id, hiện được dùng như alias cho --article-ids.",
+        help="(Deprecated) Used to filter by id, now used as an alias for --article-ids.",
     )
     parser.add_argument(
         "--article-ids",
         nargs="*",
-        help="Chỉ xử lý các điều luật (article) có id trong danh sách này (ví dụ: --article-ids 46 47). Nếu bỏ trống sẽ xử lý tất cả.",
+        help="Only process the articles (article) with id in the list (e.g. --article-ids 46 47). If empty, will process all.",
     )
     parser.add_argument(
         "--chunk-size",
         type=int,
         default=10,
-        help="Số lượng biển báo tối đa trong mỗi lần gọi VLM (mặc định: 3). Tăng lên nếu model ổn định, giảm nếu gặp lỗi/timeout với điều luật có nhiều ảnh crop.",
+        help="Maximum number of signs in each VLM call (default: 10). Increase if the model is stable, decrease if encountering errors/timeouts with articles having many cropped images.",
     )
     parser.add_argument(
         "--sleep-sec",
         type=float,
         default=1.0,
-        help="Thời gian nghỉ (giây) giữa các lần gọi VLM.",
+        help="Time to sleep (seconds) between VLM calls.",
     )
     args = parser.parse_args()
 
     # Ưu tiên resume từ OUTPUT_JSON nếu đã tồn tại, nếu không sẽ đọc từ INPUT_JSON gốc
     load_path = OUTPUT_JSON if os.path.exists(OUTPUT_JSON) else INPUT_JSON
     if not os.path.exists(load_path):
-        print(f"[ERROR] Không tìm thấy file: {load_path}")
+        print(f"[ERROR] File not found: {load_path}")
         return
 
     with open(load_path, "r", encoding="utf-8") as f:
         lawdb = json.load(f)
 
-    print(f"[INFO] Bắt đầu phân tích {len(lawdb)} bộ luật từ: {load_path}")
-    # Gộp cả law-ids (cũ) và article-ids (mới) để dùng như danh sách id điều luật cần xử lý
+    print(f"[INFO] Starting to parse {len(lawdb)} laws from: {load_path}")
+    # Combine both law-ids (old) and article-ids (new) to use as the list of law ids to process
     target_article_ids = set()
     if args.article_ids:
         target_article_ids.update(str(x) for x in args.article_ids)
@@ -233,20 +226,20 @@ def main():
         law_id = str(law.get("id", "Unknown"))
 
         articles = law.get("articles", [])
-        print(f"\n[..] Đang xử lý bộ luật {law_id} ({law_idx}/{len(lawdb)}) - số điều luật: {len(articles)}")
+        print(f"\n[..] Processing law {law_id} ({law_idx}/{len(lawdb)}) - number of articles: {len(articles)}")
 
         for art_idx, article in enumerate(
             tqdm(articles, desc=f"Articles of law {law_id}"), start=1
         ):
             art_id = article.get("id", f"{art_idx}")
             num_signs = len(article.get("signs", []))
-            print(f"[..]   -> Article {art_id} ({art_idx}/{len(articles)}), số biển báo: {num_signs}")
+            print(f"[..]   -> Article {art_id} ({art_idx}/{len(articles)}), number of signs: {num_signs}")
 
-            # Nếu người dùng chỉ định danh sách article-ids thì bỏ qua các điều luật khác
+            # If the user specified the list of article-ids, skip the other laws
             if target_article_ids and str(art_id) not in target_article_ids:
                 continue
 
-            # Nếu đã parse thành công ở lần chạy trước thì bỏ qua
+            # If the article has already been parsed successfully in a previous run, skip it
             if article.get("__is_sucessfully_parsing_sign"):
                 continue
 
@@ -254,11 +247,11 @@ def main():
             print(f"[..] chunk_size={args.chunk_size}, số lô gọi VLM: {num_chunks}")
             process_article(article, chunk_size=args.chunk_size, sleep_sec=args.sleep_sec)
             
-            # Lưu liên tục để tránh mất dữ liệu nếu gặp sự cố
+            # Save incrementally to avoid losing data if there is an error
             with open(OUTPUT_JSON, "w", encoding="utf-8") as f:
                 json.dump(lawdb, f, ensure_ascii=False, indent=4)
 
-    print(f"\n[SUCCESS] Hoàn tất! Dữ liệu đã được lưu tại: {OUTPUT_JSON}")
+    print(f"\n[SUCCESS] Completed! Data saved to: {OUTPUT_JSON}")
 
 if __name__ == "__main__":
     main()

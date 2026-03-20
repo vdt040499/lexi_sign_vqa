@@ -73,7 +73,7 @@ def _normalize_bool_tokens(text: str) -> str:
 
 
 def _extract_final_answer(response_text: str) -> list[bool] | None:
-    m = re.search(r"<<ANSWER>>(.*?)<</ANSWER>>", response_text, flags=re.DOTALL | re.IGNORECASE)
+    m = re.search(r"<<ANSWER>>(.*?)<?</ANSWER>>", response_text, flags=re.DOTALL | re.IGNORECASE)
     if not m:
         return None
 
@@ -105,6 +105,7 @@ def filter_signs(
     For each sample, call the LLM to filter which detected signs are relevant
     to the question. Updates each sign's 'is_chosen' field in-place.
     """
+    print(f"[DEBUG] Filtering signs for sample: {sample}")
     detected_signs = sample.get("detected_signs", [])
 
     if not detected_signs:
@@ -152,7 +153,9 @@ def filter_signs(
                 max_tokens=LLM_MAX_TOKENS,
             )
             llm_text = response.choices[0].message.content
+            print(f"[DEBUG] LLM raw response:\n{llm_text}\n{'─'*60}")
             parsed = _extract_final_answer(llm_text)
+            print(f"[DEBUG] Parsed answer: {parsed}")
         except Exception as e:
             print(f"[WARN] LLM filter error: {e}")
             parsed = None

@@ -1,31 +1,19 @@
 import os
 import json
 import torch
+import torch.nn.functional as F
 from pathlib import Path
 from tqdm import tqdm
 from PIL import Image
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
-from transformers import AutoProcessor, AutoModel
+from transformers import CLIPModel, CLIPProcessor
+from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT, INPUT_JSON, SIGN_PATH, INGEST_STATE_JSON, COLLECTION, MODEL_ID, VECTOR_SIZE, BATCH_SIZE
 
-# --- Cấu hình (Qdrant Cloud) ---
-QDRANT_URL = "https://36f9214c-740a-49d2-8bd2-5ed5d78a319b.eu-west-2-0.aws.cloud.qdrant.io:6333"
-QDRANT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.68I0_4iGajB0bTeMaTN9HVJ5eNjzwqovjuQjnR3xxME"
-# Timeout (giây) cho HTTP khi gửi lên cloud, tránh WriteTimeout
-QDRANT_TIMEOUT = 120
-
-INPUT_JSON = "data/lawdb/lawdb_parsed.json"
-SIGN_DIR = Path("data/lawdb/signs_extracted")
-INGEST_STATE_JSON = "data/lawdb/ingest_state.json"
-COLLECTION = "traffic_signs"
-MODEL_ID = "google/siglip-base-patch16-224"
-VECTOR_SIZE = 768
-# Batch nhỏ hơn để tránh timeout khi upload lên Qdrant Cloud
-BATCH_SIZE = 20
-
+SIGN_DIR = Path(SIGN_PATH)
 
 def load_ingest_state() -> set:
-    """Trả về set các (law_id, article_id) đã ingest (dạng tuple str)."""
+    """Return the set of (law_id, article_id) that have been ingested (as tuple str)."""
     if not os.path.exists(INGEST_STATE_JSON):
         return set()
     with open(INGEST_STATE_JSON, "r", encoding="utf-8") as f:
@@ -38,7 +26,7 @@ def load_ingest_state() -> set:
 
 
 def save_ingest_state(ingested: set):
-    """Lưu state từ set (law_id, article_id) sang file dạng { law_id: [article_id, ...] }."""
+    """Save the state from set (law_id, article_id) to file in the format { law_id: [article_id, ...] }."""
     data = {}
     for law_id, art_id in sorted(ingested):
         data.setdefault(law_id, []).append(art_id)
@@ -49,7 +37,7 @@ def save_ingest_state(ingested: set):
 
 
 def ensure_collection(client: QdrantClient):
-    """Tạo collection nếu chưa tồn tại; không xóa dữ liệu cũ khi resume."""
+    """Create the collection if it doesn't exist; don't delete old data when resuming."""
     try:
         client.get_collection(COLLECTION)
         return
@@ -62,7 +50,7 @@ def ensure_collection(client: QdrantClient):
 
 
 def next_point_id(client: QdrantClient) -> int:
-    """Lấy ID tiếp theo để dùng cho point mới (tránh trùng khi append)."""
+    """Get the next ID to use for the new point (to avoid duplicates when appending)."""
     try:
         info = client.get_collection(COLLECTION)
         return info.points_count
@@ -72,8 +60,8 @@ def next_point_id(client: QdrantClient) -> int:
 
 def main():
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    proc = AutoProcessor.from_pretrained(MODEL_ID)
-    model = AutoModel.from_pretrained(MODEL_ID).to(device)
+    proc = CLIPProcessor.from_pretrained(MODEL_ID, use_fast=True)
+    model = CLIPModel.from_pretrained(MODEL_ID).to(device).eval()
 
     client = QdrantClient(
         url=QDRANT_URL,
@@ -84,7 +72,7 @@ def main():
     p_id = next_point_id(client)
 
     ingested = load_ingest_state()
-    print(f"[INFO] Đã có {len(ingested)} (law, article) đã ingest, sẽ bỏ qua.")
+    print(f"[INFO] Already ingested {len(ingested)} (law, article), will skip.")
 
     with open(INPUT_JSON, "r", encoding="utf-8") as f:
         lawdb = json.load(f)
@@ -112,7 +100,8 @@ def main():
                 img = Image.open(path).convert("RGB")
                 inputs = proc(images=img, return_tensors="pt").to(device)
                 with torch.no_grad():
-                    vec = model.get_image_features(**inputs).cpu().numpy()[0]
+                    features = model.get_image_features(**inputs)
+                    vec = F.normalize(features, p=2, dim=1).cpu().numpy()[0]
 
                 points.append(
                     PointStruct(
@@ -141,7 +130,7 @@ def main():
     if points:
         client.upsert(collection_name=COLLECTION, points=points)
 
-    print(f"[SUCCESS] Ingest xong. Đã xử lý {processed} article mới, bỏ qua {skipped} đã có. Tổng points trong collection: {p_id}.")
+    print(f"[SUCCESS] Ingest completed. Processed {processed} new articles, skipped {skipped} already ingested. Total points in collection: {p_id}.")
 
 
 if __name__ == "__main__":

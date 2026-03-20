@@ -17,19 +17,23 @@ YOLOE_CLASS_NAMES = [
 YOLOE_SCORE_THRESHOLD = 0.2
 
 # ── Embedding (SigLIP) ────────────────────────────────────────────────────────
-EMBED_MODEL_ID = "google/siglip-base-patch16-224"
+EMBED_MODEL_ID = "zer0int/CLIP-GmP-ViT-L-14"
 
 # ── Qdrant Cloud ──────────────────────────────────────────────────────────────
 QDRANT_URL     = "https://36f9214c-740a-49d2-8bd2-5ed5d78a319b.eu-west-2-0.aws.cloud.qdrant.io:6333"
 QDRANT_API_KEY = "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJhY2Nlc3MiOiJtIn0.68I0_4iGajB0bTeMaTN9HVJ5eNjzwqovjuQjnR3xxME"
 QDRANT_TIMEOUT = 120
-COLLECTION     = "traffic_signs"
+COLLECTION     = "traffic_signs_clip"
 QDRANT_TOP_K   = 1
 
 # ── LLM — Ollama local ────────────────────────────────────────────────────────
 OLLAMA_BASE_URL = "http://localhost:11434/v1"
 OLLAMA_API_KEY  = "ollama"
 LLM_MODEL       = "gemma3:12b"
+# # ── LLM — Google Gemini API ───────────────────────────────────────────────────
+# OLLAMA_BASE_URL = "https://generativelanguage.googleapis.com/v1beta/openai/"
+# OLLAMA_API_KEY  = "YOUR_GOOGLE_API_KEY"
+# LLM_MODEL       = "gemma-3-12b-it"
 LLM_TEMPERATURE = 0.0
 LLM_MAX_TOKENS  = 5000
 
