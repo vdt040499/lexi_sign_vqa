@@ -8,5 +8,8 @@ qdrant-client>=1.17.0
 sentencepiece
 openai>=1.0.0
 tqdm
+fastapi
+uvicorn[standard]
+python-multipart
 ultralytics>=8.0.0
 supervision>=0.20.0

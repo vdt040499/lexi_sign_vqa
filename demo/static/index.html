@@ -1,0 +1,819 @@
+<!DOCTYPE html>
+<html lang="vi">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>LexiSign VQA — Sub Task 1 Demo</title>
+  <style>
+    :root {
+      --primary: #6366f1;
+      --primary-dark: #4f46e5;
+      --success: #10b981;
+      --danger: #ef4444;
+      --warn: #f59e0b;
+      --bg: #0f172a;
+      --surface: #1e293b;
+      --surface2: #334155;
+      --border: #475569;
+      --text: #f1f5f9;
+      --text-muted: #94a3b8;
+      --radius: 12px;
+    }
+
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+
+    body {
+      font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* ── Header ── */
+    header {
+      background: linear-gradient(135deg, #1e1b4b 0%, #312e81 50%, #1e1b4b 100%);
+      border-bottom: 1px solid rgba(99,102,241,0.3);
+      padding: 20px 32px;
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .logo {
+      width: 44px; height: 44px;
+      background: linear-gradient(135deg, var(--primary), #818cf8);
+      border-radius: 10px;
+      display: flex; align-items: center; justify-content: center;
+      font-size: 22px;
+    }
+    header h1 { font-size: 1.4rem; font-weight: 700; letter-spacing: -0.5px; }
+    header p  { font-size: 0.85rem; color: #a5b4fc; margin-top: 2px; }
+    .badge {
+      margin-left: auto;
+      background: rgba(99,102,241,0.2);
+      border: 1px solid rgba(99,102,241,0.4);
+      color: #a5b4fc;
+      padding: 4px 12px;
+      border-radius: 999px;
+      font-size: 0.75rem;
+      font-weight: 600;
+    }
+
+    /* ── Main layout ── */
+    main {
+      flex: 1;
+      display: grid;
+      grid-template-columns: 380px 1fr;
+      gap: 0;
+      max-width: 1400px;
+      width: 100%;
+      margin: 0 auto;
+      padding: 28px 24px;
+      gap: 24px;
+    }
+
+    /* ── Panel ── */
+    .panel {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+    }
+    .panel-header {
+      padding: 16px 20px;
+      border-bottom: 1px solid var(--border);
+      font-weight: 600;
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    /* ── Upload zone ── */
+    .upload-zone {
+      margin: 20px;
+      border: 2px dashed var(--border);
+      border-radius: var(--radius);
+      padding: 32px 20px;
+      text-align: center;
+      cursor: pointer;
+      transition: all 0.2s;
+      position: relative;
+    }
+    .upload-zone:hover, .upload-zone.drag-over {
+      border-color: var(--primary);
+      background: rgba(99,102,241,0.05);
+    }
+    .upload-zone input { position: absolute; inset: 0; opacity: 0; cursor: pointer; }
+    .upload-icon { font-size: 2.5rem; margin-bottom: 12px; }
+    .upload-zone h3 { font-size: 0.95rem; margin-bottom: 6px; }
+    .upload-zone p  { font-size: 0.8rem; color: var(--text-muted); }
+
+    .preview-wrap {
+      margin: 0 20px;
+      border-radius: var(--radius);
+      overflow: hidden;
+      display: none;
+    }
+    .preview-wrap img {
+      width: 100%;
+      max-height: 220px;
+      object-fit: cover;
+      display: block;
+    }
+    .preview-info {
+      background: var(--surface2);
+      padding: 8px 12px;
+      font-size: 0.8rem;
+      color: var(--text-muted);
+      display: flex;
+      justify-content: space-between;
+    }
+    .change-btn {
+      background: none;
+      border: none;
+      color: var(--primary);
+      cursor: pointer;
+      font-size: 0.8rem;
+      text-decoration: underline;
+    }
+
+    /* ── Question input ── */
+    .input-group { padding: 16px 20px; }
+    .input-group label {
+      display: block;
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text-muted);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .input-group textarea {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      resize: vertical;
+      min-height: 80px;
+      outline: none;
+      transition: border-color 0.2s;
+    }
+    .input-group textarea:focus { border-color: var(--primary); }
+
+    /* ── Analyze button ── */
+    .btn-analyze {
+      margin: 8px 20px 20px;
+      width: calc(100% - 40px);
+      padding: 13px;
+      background: linear-gradient(135deg, var(--primary), var(--primary-dark));
+      color: white;
+      border: none;
+      border-radius: 10px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      transition: all 0.2s;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      letter-spacing: 0.3px;
+    }
+    .btn-analyze:hover:not(:disabled) {
+      transform: translateY(-1px);
+      box-shadow: 0 8px 25px rgba(99,102,241,0.4);
+    }
+    .btn-analyze:disabled { opacity: 0.5; cursor: not-allowed; transform: none; }
+    .btn-analyze .btn-icon { font-size: 1.1rem; }
+
+    /* ── Pipeline steps ── */
+    .steps-container { padding: 20px; display: flex; flex-direction: column; gap: 16px; }
+
+    .step-card {
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      overflow: hidden;
+      transition: border-color 0.3s;
+    }
+    .step-card.active   { border-color: var(--primary); }
+    .step-card.done     { border-color: var(--success); }
+    .step-card.error    { border-color: var(--danger); }
+
+    .step-header {
+      padding: 14px 18px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .step-number {
+      width: 32px; height: 32px;
+      border-radius: 50%;
+      background: var(--border);
+      display: flex; align-items: center; justify-content: center;
+      font-weight: 700;
+      font-size: 0.85rem;
+      flex-shrink: 0;
+      transition: all 0.3s;
+    }
+    .step-card.active .step-number  { background: var(--primary); }
+    .step-card.done   .step-number  { background: var(--success); }
+    .step-card.error  .step-number  { background: var(--danger); }
+
+    .step-title { font-weight: 600; font-size: 0.95rem; }
+    .step-subtitle { font-size: 0.8rem; color: var(--text-muted); margin-top: 2px; }
+
+    .step-status {
+      margin-left: auto;
+      font-size: 1.2rem;
+    }
+
+    /* spinner */
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .spinner {
+      width: 20px; height: 20px;
+      border: 2px solid rgba(99,102,241,0.3);
+      border-top-color: var(--primary);
+      border-radius: 50%;
+      animation: spin 0.7s linear infinite;
+      flex-shrink: 0;
+    }
+
+    .step-body {
+      padding: 0 18px 16px;
+      display: none;
+    }
+    .step-body.visible { display: block; }
+
+    /* ── Crops grid ── */
+    .crops-grid {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 10px;
+      margin-top: 4px;
+    }
+    .crop-item {
+      position: relative;
+      border-radius: 8px;
+      overflow: hidden;
+      border: 2px solid var(--border);
+      transition: border-color 0.3s;
+    }
+    .crop-item.chosen  { border-color: var(--success); }
+    .crop-item.rejected{ border-color: var(--danger);  }
+
+    .crop-item img {
+      width: 88px; height: 88px;
+      object-fit: cover;
+      display: block;
+    }
+    .crop-badge {
+      position: absolute;
+      bottom: 0; left: 0; right: 0;
+      padding: 4px 6px;
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-align: center;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+    }
+    .crop-item.chosen  .crop-badge { background: rgba(16,185,129,0.85); }
+    .crop-item.rejected .crop-badge{ background: rgba(239,68,68,0.85); }
+    .crop-item.pending .crop-badge { background: rgba(71,85,105,0.85); color: var(--text-muted); }
+
+    .crop-sign-name {
+      font-size: 0.75rem;
+      color: var(--text-muted);
+      text-align: center;
+      margin-top: 4px;
+      max-width: 88px;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+
+    /* ── Article cards ── */
+    .articles-list { display: flex; flex-direction: column; gap: 10px; margin-top: 4px; }
+    .article-card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-left: 3px solid var(--primary);
+      border-radius: 8px;
+      overflow: hidden;
+    }
+    .article-card-header {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 14px;
+      cursor: pointer;
+      user-select: none;
+      transition: background 0.15s;
+    }
+    .article-card-header:hover { background: rgba(99,102,241,0.06); }
+    .article-icon { font-size: 1.2rem; flex-shrink: 0; }
+    .article-meta { flex: 1; min-width: 0; }
+    .article-law  { font-size: 0.72rem; color: var(--text-muted); margin-bottom: 2px; }
+    .article-id   { font-size: 0.98rem; font-weight: 700; color: var(--primary); }
+    .article-title-text {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      margin-top: 2px;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .article-toggle {
+      font-size: 0.7rem;
+      color: var(--text-muted);
+      flex-shrink: 0;
+      transition: transform 0.2s;
+    }
+    .article-toggle.open { transform: rotate(180deg); }
+
+    .article-body {
+      display: none;
+      padding: 0 14px 14px;
+      border-top: 1px solid var(--border);
+    }
+    .article-body.visible { display: block; }
+    .article-body-title {
+      font-size: 0.8rem;
+      font-weight: 600;
+      color: var(--text);
+      margin: 10px 0 6px;
+    }
+    .article-body-text {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      line-height: 1.65;
+      white-space: pre-wrap;
+      max-height: 260px;
+      overflow-y: auto;
+      padding-right: 4px;
+    }
+    .article-body-text::-webkit-scrollbar { width: 4px; }
+    .article-body-text::-webkit-scrollbar-track { background: transparent; }
+    .article-body-text::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+    /* ── Empty state ── */
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+    }
+    .empty-state .empty-icon { font-size: 3rem; margin-bottom: 16px; }
+    .empty-state h3 { font-size: 1rem; margin-bottom: 8px; color: var(--text); }
+    .empty-state p  { font-size: 0.85rem; }
+
+    /* ── Error toast ── */
+    .error-msg {
+      background: rgba(239,68,68,0.1);
+      border: 1px solid rgba(239,68,68,0.3);
+      border-radius: 8px;
+      padding: 10px 14px;
+      font-size: 0.85rem;
+      color: #fca5a5;
+      margin-top: 8px;
+    }
+
+    /* ── Result summary ── */
+    .result-summary {
+      background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(99,102,241,0.1));
+      border: 1px solid rgba(16,185,129,0.3);
+      border-radius: var(--radius);
+      padding: 16px 20px;
+      margin: 0 20px 20px;
+      display: none;
+    }
+    .result-summary.visible { display: block; }
+    .result-summary h3 {
+      font-size: 0.85rem;
+      color: var(--success);
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      margin-bottom: 8px;
+    }
+    .result-summary p { font-size: 0.9rem; color: var(--text-muted); }
+    .result-summary strong { color: var(--text); }
+
+    @media (max-width: 900px) {
+      main { grid-template-columns: 1fr; }
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="logo">🚦</div>
+  <div>
+    <h1>LexiSign VQA</h1>
+    <p>Traffic Sign Legal Article Retrieval</p>
+  </div>
+  <span class="badge">Sub Task 1</span>
+</header>
+
+<main>
+  <!-- Left panel: upload + input -->
+  <div>
+    <div class="panel">
+      <div class="panel-header">📷 Ảnh đầu vào</div>
+
+      <div class="upload-zone" id="uploadZone">
+        <input type="file" id="fileInput" accept="image/*" />
+        <div class="upload-icon">🖼️</div>
+        <h3>Kéo thả ảnh vào đây</h3>
+        <p>hoặc click để chọn file (JPG, PNG)</p>
+      </div>
+
+      <div class="preview-wrap" id="previewWrap">
+        <img id="previewImg" src="" alt="preview" />
+        <div class="preview-info">
+          <span id="previewName">—</span>
+          <button class="change-btn" onclick="resetUpload()">Đổi ảnh</button>
+        </div>
+      </div>
+
+      <div class="input-group">
+        <label>Câu hỏi (tùy chọn)</label>
+        <textarea id="questionInput" placeholder="Ví dụ: Biển báo này có ý nghĩa gì?"></textarea>
+      </div>
+
+      <button class="btn-analyze" id="btnAnalyze" onclick="startAnalysis()" disabled>
+        <span class="btn-icon">⚡</span>
+        Phân tích Pipeline
+      </button>
+
+      <div class="result-summary" id="resultSummary">
+        <h3>✅ Hoàn thành</h3>
+        <p id="resultText">—</p>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right panel: pipeline steps -->
+  <div class="panel">
+    <div class="panel-header">🔄 Pipeline Sub Task 1</div>
+
+    <div id="emptyState" class="empty-state">
+      <div class="empty-icon">🚦</div>
+      <h3>Sẵn sàng phân tích</h3>
+      <p>Upload ảnh và nhấn "Phân tích" để bắt đầu xem<br>từng bước của pipeline retrieval.</p>
+    </div>
+
+    <div class="steps-container" id="stepsContainer" style="display:none">
+
+      <!-- Step 1 -->
+      <div class="step-card" id="step1">
+        <div class="step-header">
+          <div class="step-number">1</div>
+          <div>
+            <div class="step-title">Phát hiện biển báo</div>
+            <div class="step-subtitle">YoloE — crop traffic signs từ ảnh</div>
+          </div>
+          <div class="step-status" id="status1">⏳</div>
+        </div>
+        <div class="step-body" id="body1">
+          <div class="crops-grid" id="cropsGrid"></div>
+        </div>
+      </div>
+
+      <!-- Step 2 -->
+      <div class="step-card" id="step2">
+        <div class="step-header">
+          <div class="step-number">2</div>
+          <div>
+            <div class="step-title">Lọc biển liên quan</div>
+            <div class="step-subtitle">Gemini gemma-3-12b-it — LLM filter</div>
+          </div>
+          <div class="step-status" id="status2">⏳</div>
+        </div>
+        <div class="step-body" id="body2">
+          <div class="crops-grid" id="filterGrid"></div>
+        </div>
+      </div>
+
+      <!-- Step 3 -->
+      <div class="step-card" id="step3">
+        <div class="step-header">
+          <div class="step-number">3</div>
+          <div>
+            <div class="step-title">Truy vấn điều luật</div>
+            <div class="step-subtitle">CLIP embed → Qdrant Cloud → Rule 1/2/3</div>
+          </div>
+          <div class="step-status" id="status3">⏳</div>
+        </div>
+        <div class="step-body" id="body3">
+          <div class="articles-list" id="articlesList"></div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</main>
+
+<script>
+  let selectedFile = null;
+  let currentSession = null;
+
+  // ── Upload handling ───────────────────────────────────────────────────────
+
+  const uploadZone = document.getElementById('uploadZone');
+  const fileInput  = document.getElementById('fileInput');
+
+  uploadZone.addEventListener('dragover', e => {
+    e.preventDefault();
+    uploadZone.classList.add('drag-over');
+  });
+  uploadZone.addEventListener('dragleave', () => uploadZone.classList.remove('drag-over'));
+  uploadZone.addEventListener('drop', e => {
+    e.preventDefault();
+    uploadZone.classList.remove('drag-over');
+    const f = e.dataTransfer.files[0];
+    if (f && f.type.startsWith('image/')) handleFile(f);
+  });
+  fileInput.addEventListener('change', () => {
+    if (fileInput.files[0]) handleFile(fileInput.files[0]);
+  });
+
+  function handleFile(file) {
+    selectedFile = file;
+    const reader = new FileReader();
+    reader.onload = e => {
+      document.getElementById('previewImg').src = e.target.result;
+      document.getElementById('previewName').textContent = file.name;
+      document.getElementById('uploadZone').style.display = 'none';
+      document.getElementById('previewWrap').style.display = 'block';
+      document.getElementById('btnAnalyze').disabled = false;
+    };
+    reader.readAsDataURL(file);
+  }
+
+  function resetUpload() {
+    selectedFile = null;
+    fileInput.value = '';
+    document.getElementById('previewImg').src = '';
+    document.getElementById('uploadZone').style.display = 'block';
+    document.getElementById('previewWrap').style.display = 'none';
+    document.getElementById('btnAnalyze').disabled = true;
+    resetUI();
+  }
+
+  // ── Analysis flow ─────────────────────────────────────────────────────────
+
+  async function startAnalysis() {
+    if (!selectedFile) return;
+
+    resetUI();
+    document.getElementById('btnAnalyze').disabled = true;
+    document.getElementById('emptyState').style.display = 'none';
+    document.getElementById('stepsContainer').style.display = 'flex';
+
+    // Upload
+    const formData = new FormData();
+    formData.append('image', selectedFile);
+    formData.append('question', document.getElementById('questionInput').value);
+
+    let sessionId;
+    try {
+      const res  = await fetch('/api/analyze', { method: 'POST', body: formData });
+      const data = await res.json();
+      sessionId  = data.session_id;
+    } catch (err) {
+      alert('Lỗi upload: ' + err);
+      document.getElementById('btnAnalyze').disabled = false;
+      return;
+    }
+
+    currentSession = sessionId;
+
+    // Stream SSE
+    const evtSource = new EventSource(`/api/stream/${sessionId}`);
+
+    evtSource.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      handleEvent(msg, sessionId, evtSource);
+    };
+    evtSource.onerror = () => {
+      evtSource.close();
+      document.getElementById('btnAnalyze').disabled = false;
+    };
+  }
+
+  function handleEvent(msg, sessionId, evtSource) {
+    switch (msg.event) {
+
+      case 'step1_start':
+        setStepActive('step1', 'status1');
+        break;
+
+      case 'step1_done': {
+        const crops = msg.data.crops;
+        const grid  = document.getElementById('cropsGrid');
+        grid.innerHTML = '';
+        crops.forEach(name => {
+          const wrap = document.createElement('div');
+          wrap.id = `crop_${name}`;
+          wrap.className = 'crop-item pending';
+          wrap.innerHTML = `
+            <img src="/api/image/${sessionId}/signs/${name}" alt="${name}" loading="lazy" />
+            <div class="crop-badge">Đang lọc</div>
+          `;
+          grid.appendChild(wrap);
+        });
+        document.getElementById('body1').classList.add('visible');
+        setStepDone('step1', 'status1', `${crops.length} biển đã phát hiện`);
+        break;
+      }
+
+      case 'step2_start':
+        setStepActive('step2', 'status2');
+        break;
+
+      case 'step2_done': {
+        const signs = msg.data.signs;
+        const grid  = document.getElementById('filterGrid');
+        grid.innerHTML = '';
+
+        signs.forEach(s => {
+          // Update crop items from step1
+          const item = document.getElementById(`crop_${s.image_name}`);
+          if (item) {
+            item.className = `crop-item ${s.is_chosen ? 'chosen' : 'rejected'}`;
+            item.querySelector('.crop-badge').textContent = s.is_chosen ? '✓ Chọn' : '✗ Loại';
+          }
+
+          // Show in filter grid
+          const wrap = document.createElement('div');
+          wrap.className = `crop-item ${s.is_chosen ? 'chosen' : 'rejected'}`;
+          const img = document.createElement('img');
+          img.src = `/api/image/${sessionId}/signs/${s.image_name}`;
+          img.style.cssText = 'width:88px;height:88px;object-fit:cover;display:block';
+          const badge = document.createElement('div');
+          badge.className = 'crop-badge';
+          badge.textContent = s.is_chosen ? '✓ Chọn' : '✗ Loại';
+          wrap.appendChild(img);
+          wrap.appendChild(badge);
+          grid.appendChild(wrap);
+        });
+
+        document.getElementById('body2').classList.add('visible');
+        const chosen = signs.filter(s => s.is_chosen).length;
+        setStepDone('step2', 'status2', `${chosen}/${signs.length} biển được chọn`);
+        break;
+      }
+
+      case 'step3_start':
+        setStepActive('step3', 'status3');
+        break;
+
+      case 'step3_done': {
+        const articles = msg.data.articles || [];
+        const signs    = msg.data.signs    || [];
+        const list     = document.getElementById('articlesList');
+        list.innerHTML = '';
+
+        // Update sign names in crops
+        signs.forEach(s => {
+          if (s.sign_name) {
+            const item = document.getElementById(`crop_${s.image_name}`);
+            if (item) {
+              let nameEl = item.querySelector('.crop-sign-name');
+              if (!nameEl) {
+                nameEl = document.createElement('div');
+                nameEl.className = 'crop-sign-name';
+                item.parentNode && item.parentNode.insertBefore(nameEl, item.nextSibling);
+              }
+            }
+          }
+        });
+
+        articles.forEach(a => {
+          const card = document.createElement('div');
+          card.className = 'article-card';
+
+          const hasContent = !!(a.title || a.text);
+          card.innerHTML = `
+            <div class="article-card-header" onclick="toggleArticle(this)">
+              <div class="article-icon">📋</div>
+              <div class="article-meta">
+                <div class="article-law">${escHtml(a.law_id)}</div>
+                <div class="article-id">Điều ${escHtml(a.article_id)}${a.title ? '' : ''}</div>
+                ${a.title ? `<div class="article-title-text">${escHtml(a.title)}</div>` : ''}
+              </div>
+              ${hasContent ? '<div class="article-toggle">▼</div>' : ''}
+            </div>
+            ${hasContent ? `
+            <div class="article-body">
+              ${a.title ? `<div class="article-body-title">${escHtml(a.title)}</div>` : ''}
+              ${a.text  ? `<div class="article-body-text">${escHtml(a.text)}</div>` : ''}
+            </div>` : ''}
+          `;
+          list.appendChild(card);
+        });
+
+        document.getElementById('body3').classList.add('visible');
+        setStepDone('step3', 'status3', `${articles.length} điều luật tìm được`);
+        break;
+      }
+
+      case 'done': {
+        evtSource.close();
+        document.getElementById('btnAnalyze').disabled = false;
+        const summary = document.getElementById('resultSummary');
+        const articles = document.querySelectorAll('.article-card').length;
+        document.getElementById('resultText').innerHTML =
+          `Pipeline hoàn thành. Tìm được <strong>${articles} điều luật</strong> liên quan.`;
+        summary.classList.add('visible');
+        break;
+      }
+
+      case 'error': {
+        evtSource.close();
+        document.getElementById('btnAnalyze').disabled = false;
+        ['step1','step2','step3'].forEach(id => {
+          const el = document.getElementById(id);
+          if (el.classList.contains('active')) {
+            el.classList.remove('active');
+            el.classList.add('error');
+          }
+        });
+        const errDiv = document.createElement('div');
+        errDiv.className = 'error-msg';
+        errDiv.textContent = '❌ Lỗi: ' + (msg.message || 'Unknown error');
+        document.getElementById('stepsContainer').appendChild(errDiv);
+        break;
+      }
+    }
+  }
+
+  // ── Step state helpers ────────────────────────────────────────────────────
+
+  function setStepActive(stepId, statusId) {
+    const card = document.getElementById(stepId);
+    card.classList.add('active');
+    const statusEl = document.getElementById(statusId);
+    statusEl.innerHTML = '';
+    const spinner = document.createElement('div');
+    spinner.className = 'spinner';
+    statusEl.appendChild(spinner);
+  }
+
+  function setStepDone(stepId, statusId, subtitle) {
+    const card = document.getElementById(stepId);
+    card.classList.remove('active');
+    card.classList.add('done');
+    document.getElementById(statusId).innerHTML = '✅';
+    if (subtitle) {
+      card.querySelector('.step-subtitle').textContent = subtitle;
+    }
+  }
+
+  function escHtml(str) {
+    return String(str || '')
+      .replace(/&/g, '&amp;')
+      .replace(/</g, '&lt;')
+      .replace(/>/g, '&gt;')
+      .replace(/"/g, '&quot;');
+  }
+
+  function toggleArticle(headerEl) {
+    const body   = headerEl.nextElementSibling;
+    const toggle = headerEl.querySelector('.article-toggle');
+    if (!body) return;
+    const open = body.classList.toggle('visible');
+    if (toggle) toggle.classList.toggle('open', open);
+  }
+
+  function resetUI() {
+    ['step1','step2','step3'].forEach(id => {
+      const card = document.getElementById(id);
+      card.className = 'step-card';
+    });
+    document.getElementById('status1').innerHTML = '⏳';
+    document.getElementById('status2').innerHTML = '⏳';
+    document.getElementById('status3').innerHTML = '⏳';
+    document.getElementById('cropsGrid').innerHTML   = '';
+    document.getElementById('filterGrid').innerHTML  = '';
+    document.getElementById('articlesList').innerHTML = '';
+    document.getElementById('body1').classList.remove('visible');
+    document.getElementById('body2').classList.remove('visible');
+    document.getElementById('body3').classList.remove('visible');
+    document.getElementById('resultSummary').classList.remove('visible');
+
+    // Restore original subtitles
+    document.querySelector('#step1 .step-subtitle').textContent = 'YoloE — crop traffic signs từ ảnh';
+    document.querySelector('#step2 .step-subtitle').textContent = 'Gemini gemma-3-12b-it — LLM filter';
+    document.querySelector('#step3 .step-subtitle').textContent = 'CLIP embed → Qdrant Cloud → Rule 1/2/3';
+  }
+</script>
+</body>
+</html>

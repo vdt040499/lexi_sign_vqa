@@ -6,3 +6,5 @@ debug
 models
 mobileclip_blt.ts
 test.py
+subtask1/__pycache__/
+.DS_Store
