@@ -8,3 +8,6 @@ mobileclip_blt.ts
 test.py
 subtask1/__pycache__/
 .DS_Store
+demo/uploads/
+demo/__pycache__/
+subtask2/__pycache__/

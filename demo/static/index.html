@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>LexiSign VQA — Sub Task 1 Demo</title>
+  <title>LexiSign VQA — Demo</title>
   <style>
     :root {
       --primary: #6366f1;
@@ -167,6 +167,11 @@
       transition: border-color 0.2s;
     }
     .input-group textarea:focus { border-color: var(--primary); }
+    .input-group textarea[readonly] {
+      opacity: 0.92;
+      cursor: default;
+    }
+    .step-subtitle { display: none; }
 
     /* ── Analyze button ── */
     .btn-analyze {
@@ -385,6 +390,40 @@
       margin-top: 8px;
     }
 
+    /* ── Question type select ── */
+    .input-group select {
+      width: 100%;
+      background: var(--surface2);
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      color: var(--text);
+      padding: 10px 12px;
+      font-size: 0.9rem;
+      outline: none;
+      transition: border-color 0.2s;
+      cursor: pointer;
+    }
+    .input-group select:focus { border-color: var(--primary); }
+
+    /* ── Answer card ── */
+    .answer-card {
+      background: linear-gradient(135deg, rgba(99,102,241,0.12), rgba(16,185,129,0.08));
+      border: 2px solid var(--primary);
+      border-radius: var(--radius);
+      padding: 18px 20px;
+      margin-top: 4px;
+    }
+    .answer-badge {
+      display: inline-block;
+      background: var(--primary);
+      color: white;
+      font-size: 1.4rem;
+      font-weight: 800;
+      padding: 6px 22px;
+      border-radius: 999px;
+      letter-spacing: 0.5px;
+      margin-bottom: 10px;
+    }
     /* ── Result summary ── */
     .result-summary {
       background: linear-gradient(135deg, rgba(16,185,129,0.1), rgba(99,102,241,0.1));
@@ -416,44 +455,61 @@
   <div class="logo">🚦</div>
   <div>
     <h1>LexiSign VQA</h1>
-    <p>Traffic Sign Legal Article Retrieval</p>
   </div>
-  <span class="badge">Sub Task 1</span>
 </header>
 
 <main>
   <!-- Left panel: upload + input -->
   <div>
     <div class="panel">
-      <div class="panel-header">📷 Ảnh đầu vào</div>
+      <div class="panel-header">SUBTASK 1 (Truy vấn điều luật)</div>
+
+      <div class="input-group" style="padding-top: 20px">
+        <label>Chọn câu hỏi</label>
+        <select id="vlspSelect" onchange="onVlspSelectChange()">
+          <option value="">—</option>
+        </select>
+      </div>
 
       <div class="upload-zone" id="uploadZone">
         <input type="file" id="fileInput" accept="image/*" />
         <div class="upload-icon">🖼️</div>
-        <h3>Kéo thả ảnh vào đây</h3>
-        <p>hoặc click để chọn file (JPG, PNG)</p>
+        <h3>Ảnh</h3>
       </div>
 
       <div class="preview-wrap" id="previewWrap">
         <img id="previewImg" src="" alt="preview" />
         <div class="preview-info">
           <span id="previewName">—</span>
-          <button class="change-btn" onclick="resetUpload()">Đổi ảnh</button>
         </div>
       </div>
 
       <div class="input-group">
-        <label>Câu hỏi (tùy chọn)</label>
-        <textarea id="questionInput" placeholder="Ví dụ: Biển báo này có ý nghĩa gì?"></textarea>
+        <label>Câu hỏi</label>
+        <textarea id="task1QuestionInput" placeholder=""></textarea>
       </div>
 
-      <button class="btn-analyze" id="btnAnalyze" onclick="startAnalysis()" disabled>
-        <span class="btn-icon">⚡</span>
-        Phân tích Pipeline
+      <button class="btn-analyze" id="btnAnalyzeTask1" onclick="startSubtask1()" disabled>
+        Truy vấn điều luật
+      </button>
+
+      <div class="panel-header" style="border-top:1px solid var(--border)">Subtask 2 (Trả lời câu hỏi)</div>
+
+      <div class="input-group">
+        <label>Loại</label>
+        <textarea id="displayTask2Type" readonly rows="1" style="min-height:40px"></textarea>
+      </div>
+
+      <div class="input-group" id="task2ChoicesDisplayGroup" style="display:none">
+        <label>Lựa chọn</label>
+        <textarea id="displayTask2Choices" readonly style="min-height:120px"></textarea>
+      </div>
+
+      <button class="btn-analyze" id="btnAnswerTask2" onclick="startSubtask2()" disabled>
+        Trả lời câu hỏi
       </button>
 
       <div class="result-summary" id="resultSummary">
-        <h3>✅ Hoàn thành</h3>
         <p id="resultText">—</p>
       </div>
     </div>
@@ -461,12 +517,10 @@
 
   <!-- Right panel: pipeline steps -->
   <div class="panel">
-    <div class="panel-header">🔄 Pipeline Sub Task 1</div>
+    <div class="panel-header">Pipeline</div>
 
     <div id="emptyState" class="empty-state">
-      <div class="empty-icon">🚦</div>
-      <h3>Sẵn sàng phân tích</h3>
-      <p>Upload ảnh và nhấn "Phân tích" để bắt đầu xem<br>từng bước của pipeline retrieval.</p>
+      <h3>Chưa có dữ liệu</h3>
     </div>
 
     <div class="steps-container" id="stepsContainer" style="display:none">
@@ -476,8 +530,8 @@
         <div class="step-header">
           <div class="step-number">1</div>
           <div>
-            <div class="step-title">Phát hiện biển báo</div>
-            <div class="step-subtitle">YoloE — crop traffic signs từ ảnh</div>
+            <div class="step-title">1 · Phát hiện biển</div>
+            <div class="step-subtitle"></div>
           </div>
           <div class="step-status" id="status1">⏳</div>
         </div>
@@ -491,8 +545,8 @@
         <div class="step-header">
           <div class="step-number">2</div>
           <div>
-            <div class="step-title">Lọc biển liên quan</div>
-            <div class="step-subtitle">Gemini gemma-3-12b-it — LLM filter</div>
+            <div class="step-title">2 · Lọc biển</div>
+            <div class="step-subtitle"></div>
           </div>
           <div class="step-status" id="status2">⏳</div>
         </div>
@@ -506,13 +560,30 @@
         <div class="step-header">
           <div class="step-number">3</div>
           <div>
-            <div class="step-title">Truy vấn điều luật</div>
-            <div class="step-subtitle">CLIP embed → Qdrant Cloud → Rule 1/2/3</div>
+            <div class="step-title">3 · Điều luật</div>
+            <div class="step-subtitle"></div>
           </div>
           <div class="step-status" id="status3">⏳</div>
         </div>
         <div class="step-body" id="body3">
           <div class="articles-list" id="articlesList"></div>
+        </div>
+      </div>
+
+      <!-- Step 4 (Subtask 2) -->
+      <div class="step-card" id="step4" style="display:none">
+        <div class="step-header">
+          <div class="step-number">4</div>
+          <div>
+            <div class="step-title">4 · Trả lời</div>
+            <div class="step-subtitle"></div>
+          </div>
+          <div class="step-status" id="status4">⏳</div>
+        </div>
+        <div class="step-body" id="body4">
+          <div class="answer-card" id="answerCard" style="display:none">
+            <div class="answer-badge" id="answerBadge">—</div>
+          </div>
         </div>
       </div>
 
@@ -523,6 +594,97 @@
 <script>
   let selectedFile = null;
   let currentSession = null;
+  let subtask1Done = false;
+  let selectedVlspId = null;
+  let vlspById = {};
+
+  // ── VLSP index ────────────────────────────────────────────────────────────
+
+  function vlspShortLabel(id, imageId) {
+    const testRest = String(id || '').replace(/^public_test_/i, '') || id;
+    const imgRest  = String(imageId || '').replace(/^public_test_/i, '') || imageId;
+    return `Câu hỏi ${testRest} (Hình ${imgRest})`;
+  }
+
+  async function loadVlspSamples() {
+    try {
+      const res = await fetch('/api/vlsp/samples');
+      const rows = await res.json();
+      vlspById = {};
+      rows.forEach(s => { vlspById[s.id] = s; });
+      rows.sort((a, b) => {
+        const fi = String(a.image_id || '').localeCompare(String(b.image_id || ''));
+        if (fi !== 0) return fi;
+        return String(a.id || '').localeCompare(String(b.id || ''));
+      });
+      const sel = document.getElementById('vlspSelect');
+      while (sel.options.length > 1) sel.remove(1);
+      rows.forEach(s => {
+        const opt = document.createElement('option');
+        opt.value = s.id;
+        opt.textContent = vlspShortLabel(s.id, s.image_id);
+        sel.appendChild(opt);
+      });
+    } catch (e) {
+      console.warn('VLSP samples load failed', e);
+    }
+  }
+
+  function applySubtask2Display(questionType, choicesText) {
+    const t = questionType || '—';
+    document.getElementById('displayTask2Type').value = t;
+    const g = document.getElementById('task2ChoicesDisplayGroup');
+    const ta = document.getElementById('displayTask2Choices');
+    if (t === 'Multiple choice' && String(choicesText || '').trim()) {
+      g.style.display = 'block';
+      ta.value = choicesText;
+    } else {
+      g.style.display = 'none';
+      ta.value = '';
+    }
+  }
+
+  function onVlspSelectChange() {
+    const id = document.getElementById('vlspSelect').value;
+    selectedFile = null;
+    document.getElementById('fileInput').value = '';
+
+    if (!id) {
+      selectedVlspId = null;
+      document.getElementById('task1QuestionInput').value = '';
+      document.getElementById('task1QuestionInput').readOnly = false;
+      document.getElementById('previewWrap').style.display = 'none';
+      document.getElementById('uploadZone').style.display = 'block';
+      applySubtask2Display('Yes/No', '');
+      document.getElementById('btnAnalyzeTask1').disabled = true;
+      return;
+    }
+
+    selectedVlspId = id;
+    const s = vlspById[id];
+    if (!s) return;
+
+    document.getElementById('task1QuestionInput').value = s.question || '';
+    document.getElementById('task1QuestionInput').readOnly = true;
+    document.getElementById('previewImg').src = `/api/vlsp/image/${encodeURIComponent(s.image_id)}`;
+    document.getElementById('previewName').textContent = vlspShortLabel(s.id, s.image_id);
+    document.getElementById('uploadZone').style.display = 'none';
+    document.getElementById('previewWrap').style.display = 'block';
+    applySubtask2Display(s.question_type, s.choices_text);
+    document.getElementById('btnAnalyzeTask1').disabled = false;
+  }
+
+  function clearVlspSelection() {
+    document.getElementById('vlspSelect').value = '';
+    selectedVlspId = null;
+    document.getElementById('task1QuestionInput').readOnly = false;
+    applySubtask2Display('Yes/No', '');
+  }
+
+  document.addEventListener('DOMContentLoaded', () => {
+    loadVlspSamples();
+    applySubtask2Display('Yes/No', '');
+  });
 
   // ── Upload handling ───────────────────────────────────────────────────────
 
@@ -545,6 +707,7 @@
   });
 
   function handleFile(file) {
+    clearVlspSelection();
     selectedFile = file;
     const reader = new FileReader();
     reader.onload = e => {
@@ -552,7 +715,7 @@
       document.getElementById('previewName').textContent = file.name;
       document.getElementById('uploadZone').style.display = 'none';
       document.getElementById('previewWrap').style.display = 'block';
-      document.getElementById('btnAnalyze').disabled = false;
+      document.getElementById('btnAnalyzeTask1').disabled = false;
     };
     reader.readAsDataURL(file);
   }
@@ -560,55 +723,106 @@
   function resetUpload() {
     selectedFile = null;
     fileInput.value = '';
+    document.getElementById('vlspSelect').value = '';
+    selectedVlspId = null;
+    document.getElementById('task1QuestionInput').value = '';
+    document.getElementById('task1QuestionInput').readOnly = false;
+    applySubtask2Display('Yes/No', '');
     document.getElementById('previewImg').src = '';
     document.getElementById('uploadZone').style.display = 'block';
     document.getElementById('previewWrap').style.display = 'none';
-    document.getElementById('btnAnalyze').disabled = true;
+    document.getElementById('btnAnalyzeTask1').disabled = true;
+    document.getElementById('btnAnswerTask2').disabled = true;
+    currentSession = null;
+    subtask1Done = false;
     resetUI();
   }
 
-  // ── Analysis flow ─────────────────────────────────────────────────────────
+  // ── Subtask 1 flow ────────────────────────────────────────────────────────
 
-  async function startAnalysis() {
-    if (!selectedFile) return;
+  async function startSubtask1() {
+    if (!selectedVlspId && !selectedFile) return;
 
     resetUI();
-    document.getElementById('btnAnalyze').disabled = true;
+    subtask1Done = false;
+    document.getElementById('btnAnalyzeTask1').disabled = true;
+    document.getElementById('btnAnswerTask2').disabled = true;
     document.getElementById('emptyState').style.display = 'none';
     document.getElementById('stepsContainer').style.display = 'flex';
 
-    // Upload
-    const formData = new FormData();
-    formData.append('image', selectedFile);
-    formData.append('question', document.getElementById('questionInput').value);
-
     let sessionId;
     try {
-      const res  = await fetch('/api/analyze', { method: 'POST', body: formData });
-      const data = await res.json();
-      sessionId  = data.session_id;
+      if (selectedVlspId) {
+        const formData = new FormData();
+        formData.append('sample_id', selectedVlspId);
+        const res = await fetch('/api/subtask1/analyze_vlsp', { method: 'POST', body: formData });
+        if (!res.ok) {
+          const err = await res.json().catch(() => ({}));
+          throw new Error(err.error || res.statusText);
+        }
+        const data = await res.json();
+        sessionId = data.session_id;
+      } else {
+        const formData = new FormData();
+        formData.append('image', selectedFile);
+        formData.append('question', document.getElementById('task1QuestionInput').value);
+        const res = await fetch('/api/subtask1/analyze', { method: 'POST', body: formData });
+        const data = await res.json();
+        sessionId = data.session_id;
+      }
     } catch (err) {
-      alert('Lỗi upload: ' + err);
-      document.getElementById('btnAnalyze').disabled = false;
+      alert('Lỗi Subtask 1: ' + err);
+      document.getElementById('btnAnalyzeTask1').disabled = false;
       return;
     }
 
     currentSession = sessionId;
 
     // Stream SSE
-    const evtSource = new EventSource(`/api/stream/${sessionId}`);
+    const evtSource = new EventSource(`/api/subtask1/stream/${sessionId}`);
 
     evtSource.onmessage = e => {
       const msg = JSON.parse(e.data);
-      handleEvent(msg, sessionId, evtSource);
+      handleEventTask1(msg, sessionId, evtSource);
     };
     evtSource.onerror = () => {
       evtSource.close();
-      document.getElementById('btnAnalyze').disabled = false;
+      document.getElementById('btnAnalyzeTask1').disabled = false;
     };
   }
 
-  function handleEvent(msg, sessionId, evtSource) {
+  // ── Subtask 2 flow ────────────────────────────────────────────────────────
+
+  async function startSubtask2() {
+    if (!subtask1Done || !currentSession) return;
+
+    document.getElementById('step4').style.display = 'block';
+    document.getElementById('body4').classList.add('visible');
+    document.getElementById('btnAnswerTask2').disabled = true;
+
+    const formData = new FormData();
+    formData.append('session_id', currentSession);
+
+    try {
+      await fetch('/api/subtask2/answer', { method: 'POST', body: formData });
+    } catch (err) {
+      alert('Lỗi gọi Subtask 2: ' + err);
+      document.getElementById('btnAnswerTask2').disabled = false;
+      return;
+    }
+
+    const evtSource = new EventSource(`/api/subtask2/stream/${currentSession}`);
+    evtSource.onmessage = e => {
+      const msg = JSON.parse(e.data);
+      handleEventTask2(msg, evtSource);
+    };
+    evtSource.onerror = () => {
+      evtSource.close();
+      document.getElementById('btnAnswerTask2').disabled = false;
+    };
+  }
+
+  function handleEventTask1(msg, sessionId, evtSource) {
     switch (msg.event) {
 
       case 'step1_start':
@@ -727,25 +941,67 @@
 
       case 'done': {
         evtSource.close();
-        document.getElementById('btnAnalyze').disabled = false;
-        const summary = document.getElementById('resultSummary');
+        document.getElementById('btnAnalyzeTask1').disabled = false;
+        subtask1Done = true;
+        document.getElementById('btnAnswerTask2').disabled = false;
+        const summary  = document.getElementById('resultSummary');
         const articles = document.querySelectorAll('.article-card').length;
         document.getElementById('resultText').innerHTML =
-          `Pipeline hoàn thành. Tìm được <strong>${articles} điều luật</strong> liên quan.`;
+          `Subtask 1 · <strong>${articles}</strong> điều`;
         summary.classList.add('visible');
         break;
       }
 
       case 'error': {
         evtSource.close();
-        document.getElementById('btnAnalyze').disabled = false;
+        document.getElementById('btnAnalyzeTask1').disabled = false;
         ['step1','step2','step3'].forEach(id => {
           const el = document.getElementById(id);
-          if (el.classList.contains('active')) {
+          if (el && el.classList.contains('active')) {
             el.classList.remove('active');
             el.classList.add('error');
           }
         });
+        const errDiv = document.createElement('div');
+        errDiv.className = 'error-msg';
+        errDiv.textContent = '❌ Lỗi: ' + (msg.message || 'Unknown error');
+        document.getElementById('stepsContainer').appendChild(errDiv);
+        break;
+      }
+    }
+  }
+
+  function handleEventTask2(msg, evtSource) {
+    switch (msg.event) {
+      case 'step4_start':
+        setStepActive('step4', 'status4');
+        break;
+      case 'step4_done': {
+        const predict = msg.data.predict || '—';
+        document.getElementById('answerBadge').textContent  = predict;
+        document.getElementById('answerCard').style.display = 'block';
+        setStepDone('step4', 'status4', '');
+        break;
+      }
+      case 'done': {
+        evtSource.close();
+        document.getElementById('btnAnswerTask2').disabled = false;
+        const summary  = document.getElementById('resultSummary');
+        const predict  = document.getElementById('answerBadge').textContent;
+        const articles = document.querySelectorAll('.article-card').length;
+        document.getElementById('resultText').innerHTML =
+          `Subtask 2 · <strong>${escHtml(predict)}</strong>`;
+        summary.classList.add('visible');
+        break;
+      }
+      case 'error': {
+        evtSource.close();
+        document.getElementById('btnAnswerTask2').disabled = false;
+        const el = document.getElementById('step4');
+        if (el && el.classList.contains('active')) {
+          el.classList.remove('active');
+          el.classList.add('error');
+        }
         const errDiv = document.createElement('div');
         errDiv.className = 'error-msg';
         errDiv.textContent = '❌ Lỗi: ' + (msg.message || 'Unknown error');
@@ -794,25 +1050,26 @@
   }
 
   function resetUI() {
-    ['step1','step2','step3'].forEach(id => {
+    ['step1','step2','step3','step4'].forEach(id => {
       const card = document.getElementById(id);
-      card.className = 'step-card';
+      if (card) card.className = 'step-card';
     });
     document.getElementById('status1').innerHTML = '⏳';
     document.getElementById('status2').innerHTML = '⏳';
     document.getElementById('status3').innerHTML = '⏳';
-    document.getElementById('cropsGrid').innerHTML   = '';
-    document.getElementById('filterGrid').innerHTML  = '';
+    document.getElementById('status4').innerHTML = '⏳';
+    document.getElementById('cropsGrid').innerHTML    = '';
+    document.getElementById('filterGrid').innerHTML   = '';
     document.getElementById('articlesList').innerHTML = '';
     document.getElementById('body1').classList.remove('visible');
     document.getElementById('body2').classList.remove('visible');
     document.getElementById('body3').classList.remove('visible');
+    document.getElementById('body4').classList.remove('visible');
+    document.getElementById('answerCard').style.display = 'none';
+    document.getElementById('answerBadge').textContent  = '—';
+    document.getElementById('step4').style.display = 'none';
     document.getElementById('resultSummary').classList.remove('visible');
 
-    // Restore original subtitles
-    document.querySelector('#step1 .step-subtitle').textContent = 'YoloE — crop traffic signs từ ảnh';
-    document.querySelector('#step2 .step-subtitle').textContent = 'Gemini gemma-3-12b-it — LLM filter';
-    document.querySelector('#step3 .step-subtitle').textContent = 'CLIP embed → Qdrant Cloud → Rule 1/2/3';
   }
 </script>
 </body>
