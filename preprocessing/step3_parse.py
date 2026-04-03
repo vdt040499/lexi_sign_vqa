@@ -9,7 +9,10 @@ from pathlib import Path
 from typing import Sequence, List, Dict, Any, Tuple
 from tqdm import tqdm
 from openai import OpenAI
-from config import INPUT_PARSE_JSON, OUTPUT_PARSE_JSON, EXTRACTED_SIGN_PATH, OLLAMA_API_KEY, BASE_URL, MODEL_ID
+from config import INPUT_PARSE_JSON, OUTPUT_PARSE_JSON, EXTRACTED_SIGN_PATH, OLLAMA_API_KEY, BASE_URL, PARSE_MODEL_ID
+
+INPUT_JSON = INPUT_PARSE_JSON
+OUTPUT_JSON = OUTPUT_PARSE_JSON
 
 EXTRACTED_SIGN_DIR = Path(EXTRACTED_SIGN_PATH)
 
@@ -148,7 +151,7 @@ def process_article(article: Dict, chunk_size: int = 2, sleep_sec: float = 1.0):
 
         try:
             response = client.chat.completions.create(
-                model=MODEL_ID,
+                model=PARSE_MODEL_ID,
                 messages=messages,
                 temperature=0.0
             )

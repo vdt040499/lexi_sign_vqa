@@ -11,13 +11,13 @@ EXTRACTED_SIGN_PATH = "data/lawdb/signs_extracted"
 IGNORED_ARTICLE_ID = "ignore_prefix_"
 
 # Step 3: Parse the signs
-INPUT_PARSE_JSON = "data/lawdb/lawdb_extracted.json"
-OUTPUT_PARSE_JSON = "data/lawdb/lawdb_parsed.json"
-EXTRACTED_SIGN_PATH = "data/lawdb/signs_extracted"
+INPUT_PARSE_JSON = "../data/lawdb/lawdb_extracted.json"
+OUTPUT_PARSE_JSON = "../data/lawdb/lawdb_parsed.json"
+EXTRACTED_SIGN_PATH = "../data/lawdb/signs_extracted"
 
 OLLAMA_API_KEY = "ollama"
 BASE_URL = "http://localhost:11434/v1"
-MODEL_ID = "gemma3:12b"
+PARSE_MODEL_ID = "gemma3:12b"
 
 # Step 4: Ingest the data into Qdrant
 QDRANT_URL = "https://36f9214c-740a-49d2-8bd2-5ed5d78a319b.eu-west-2-0.aws.cloud.qdrant.io:6333"
@@ -28,6 +28,6 @@ INPUT_JSON = "data/lawdb/lawdb_parsed.json"
 SIGN_PATH = "data/lawdb/signs_extracted"
 INGEST_STATE_JSON = "data/lawdb/ingest_state_clip.json"
 COLLECTION = "traffic_signs_clip"
-MODEL_ID = "zer0int/CLIP-GmP-ViT-L-14"
+INGEST_MODEL_ID = "zer0int/CLIP-GmP-ViT-L-14"
 VECTOR_SIZE = 768
 BATCH_SIZE = 20
