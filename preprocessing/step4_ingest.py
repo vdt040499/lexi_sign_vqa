@@ -8,7 +8,7 @@ from PIL import Image
 from qdrant_client import QdrantClient
 from qdrant_client.models import Distance, VectorParams, PointStruct
 from transformers import CLIPModel, CLIPProcessor
-from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT, INPUT_JSON, SIGN_PATH, INGEST_STATE_JSON, COLLECTION, MODEL_ID, VECTOR_SIZE, BATCH_SIZE
+from config import QDRANT_URL, QDRANT_API_KEY, QDRANT_TIMEOUT, INPUT_JSON, SIGN_PATH, INGEST_STATE_JSON, COLLECTION, INGEST_MODEL_ID, VECTOR_SIZE, BATCH_SIZE
 
 SIGN_DIR = Path(SIGN_PATH)
 
@@ -59,9 +59,20 @@ def next_point_id(client: QdrantClient) -> int:
 
 
 def main():
+    print("[INFO] Step 4: ingest vao Qdrant - khoi dong.", flush=True)
+    print(f"[INFO] JSON nguon: {INPUT_JSON}", flush=True)
+    print(f"[INFO] Collection: {COLLECTION}", flush=True)
+    print(
+        f"[INFO] Dang tai/nap CLIP ({INGEST_MODEL_ID}); lan dau co the mat vai phut (HuggingFace + GPU/CPU).",
+        flush=True,
+    )
     device = "cuda" if torch.cuda.is_available() else "cpu"
-    proc = CLIPProcessor.from_pretrained(MODEL_ID, use_fast=True)
-    model = CLIPModel.from_pretrained(MODEL_ID).to(device).eval()
+    print(f"[INFO] Device: {device}", flush=True)
+    print("[INFO] CLIPProcessor.from_pretrained ...", flush=True)
+    proc = CLIPProcessor.from_pretrained(INGEST_MODEL_ID, use_fast=True)
+    print("[INFO] CLIPModel.from_pretrained ...", flush=True)
+    model = CLIPModel.from_pretrained(INGEST_MODEL_ID).to(device).eval()
+    print("[INFO] Da nap CLIP. Ket noi Qdrant ...", flush=True)
 
     client = QdrantClient(
         url=QDRANT_URL,
@@ -72,7 +83,7 @@ def main():
     p_id = next_point_id(client)
 
     ingested = load_ingest_state()
-    print(f"[INFO] Already ingested {len(ingested)} (law, article), will skip.")
+    print(f"[INFO] Already ingested {len(ingested)} (law, article), will skip.", flush=True)
 
     with open(INPUT_JSON, "r", encoding="utf-8") as f:
         lawdb = json.load(f)
